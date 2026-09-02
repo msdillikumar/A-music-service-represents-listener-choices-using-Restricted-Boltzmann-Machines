@@ -128,6 +128,80 @@ def visible_probability(h, W, visible_bias):
 
 
 # -----------------------------------------------------------
+# Train the RBM using Contrastive Divergence (CD-1)
+# -----------------------------------------------------------
+def train_rbm(data, W, visible_bias, hidden_bias, epochs=500, learning_rate=0.1):
+    """
+    Train the RBM using Contrastive Divergence with 1 step (CD-1).
+
+    CD-1 is the simplest and most common RBM training algorithm.
+    For each training sample, it does:
+      1. Positive phase: compute hidden probabilities from visible input
+      2. Reconstruction: generate visible probabilities from hidden sample
+      3. Negative phase: compute hidden probabilities from reconstruction
+      4. Update: adjust weights and biases based on the difference
+
+    Parameters:
+        data          - training data, shape (num_samples, num_visible)
+        W             - weight matrix
+        visible_bias  - visible unit biases
+        hidden_bias   - hidden unit biases
+        epochs        - number of training iterations over the full dataset
+        learning_rate - how much to adjust weights each step
+
+    Returns:
+        Updated W, visible_bias, hidden_bias
+    """
+    num_samples = data.shape[0]
+
+    for epoch in range(epochs):
+        total_error = 0.0
+
+        for i in range(num_samples):
+            # Current training sample (one listener's preferences)
+            v0 = data[i].astype(float)
+
+            # --- POSITIVE PHASE ---
+            # Compute hidden probabilities from the real visible data
+            h0_prob = hidden_probability(v0, W, hidden_bias)
+
+            # Sample hidden units: convert probabilities to binary (0 or 1)
+            # using random threshold (stochastic sampling)
+            h0_sample = (h0_prob > np.random.rand(len(h0_prob))).astype(float)
+
+            # --- RECONSTRUCTION (Negative phase) ---
+            # Generate visible reconstruction from the hidden sample
+            v1_prob = visible_probability(h0_sample, W, visible_bias)
+
+            # Compute hidden probabilities from the reconstruction
+            h1_prob = hidden_probability(v1_prob, W, hidden_bias)
+
+            # --- WEIGHT UPDATE ---
+            # Positive associations: real visible * real hidden
+            positive = np.outer(v0, h0_prob)
+
+            # Negative associations: reconstructed visible * reconstructed hidden
+            negative = np.outer(v1_prob, h1_prob)
+
+            # Update weights: move toward positive, away from negative
+            W += learning_rate * (positive - negative) / num_samples
+
+            # Update biases
+            visible_bias += learning_rate * (v0 - v1_prob) / num_samples
+            hidden_bias += learning_rate * (h0_prob - h1_prob) / num_samples
+
+            # Track reconstruction error (how well RBM reconstructs the input)
+            total_error += np.sum((v0 - v1_prob) ** 2)
+
+        # Print progress every 100 epochs
+        avg_error = total_error / num_samples
+        if (epoch + 1) % 100 == 0:
+            print(f"  Epoch {epoch + 1:4d}/{epochs} - Reconstruction error: {avg_error:.4f}")
+
+    return W, visible_bias, hidden_bias
+
+
+# -----------------------------------------------------------
 # Main
 # -----------------------------------------------------------
 if __name__ == "__main__":
@@ -148,47 +222,95 @@ if __name__ == "__main__":
     print(f"Hidden units:  {NUM_HIDDEN}")
     print(f"Weight matrix shape: {W.shape}")
 
-    # -------------------------------------------------------
-    # Demonstrate hidden representation for one listener
-    # -------------------------------------------------------
-    print(f"\n{'=' * 55}")
-    print("Hidden Representation Calculation (before training)")
-    print("=" * 55)
-
     # Example listener: likes Pop, Rock, Hip-Hop, Electronic
     listener = np.array([1, 1, 0, 1, 0, 1])
+
+    # -------------------------------------------------------
+    # Show hidden representation BEFORE training
+    # -------------------------------------------------------
+    print(f"\n{'=' * 55}")
+    print("BEFORE TRAINING (random weights)")
+    print("=" * 55)
+
+    h_prob_before = hidden_probability(listener, W, hidden_bias)
+    h_binary_before = (h_prob_before >= 0.5).astype(int)
+
+    print(f"\nListener: {listener}")
+    print(f"Hidden probabilities: H1={h_prob_before[0]:.4f}, H2={h_prob_before[1]:.4f}")
+    print(f"Hidden representation: {h_binary_before}")
+    print(f"(These are near 0.5 because weights are random — no learning yet)")
+
+    # -------------------------------------------------------
+    # Train the RBM
+    # -------------------------------------------------------
+    print(f"\n{'=' * 55}")
+    print("TRAINING THE RBM")
+    print("=" * 55)
+    print(f"\nTraining with CD-1 for 500 epochs, learning rate = 0.1")
+    print()
+
+    W, visible_bias, hidden_bias = train_rbm(
+        data, W, visible_bias, hidden_bias,
+        epochs=500, learning_rate=0.1
+    )
+
+    print(f"\nTraining complete!")
+    print(f"\nLearned weights:\n{W}")
+    print(f"Learned visible bias: {visible_bias}")
+    print(f"Learned hidden bias:  {hidden_bias}")
+
+    # -------------------------------------------------------
+    # Show hidden representation AFTER training
+    # -------------------------------------------------------
+    print(f"\n{'=' * 55}")
+    print("AFTER TRAINING (learned weights)")
+    print("=" * 55)
 
     print(f"\nListener input vector:")
     for i, genre in enumerate(GENRE_NAMES):
         status = "likes" if listener[i] == 1 else "does not like"
         print(f"  {genre}: {listener[i]} ({status})")
 
-    # Step-by-step calculation
+    # Step-by-step calculation with trained weights
     print(f"\n--- Step-by-step calculation ---")
 
-    # Step 1: v . W
     vW = np.dot(listener, W)
-    print(f"Step 1: v . W = {vW}")
+    print(f"Step 1: v . W = [{vW[0]:.4f}, {vW[1]:.4f}]")
 
-    # Step 2: Add hidden bias
     activation = vW + hidden_bias
-    print(f"Step 2: v . W + hidden_bias = {activation}")
+    print(f"Step 2: v . W + hidden_bias = [{activation[0]:.4f}, {activation[1]:.4f}]")
 
-    # Step 3: Apply sigmoid
     h_prob = sigmoid(activation)
-    print(f"Step 3: sigmoid(activation) = {h_prob}")
-
-    # Verify using our function
-    h_prob_check = hidden_probability(listener, W, hidden_bias)
-    print(f"\nUsing hidden_probability() function: {h_prob_check}")
+    print(f"Step 3: sigmoid(activation) = [{h_prob[0]:.4f}, {h_prob[1]:.4f}]")
 
     print(f"\nHidden activation probabilities:")
     print(f"  H1 (Latent Feature 1): {h_prob[0]:.4f}")
     print(f"  H2 (Latent Feature 2): {h_prob[1]:.4f}")
 
-    # Convert to binary using threshold 0.5
     h_binary = (h_prob >= 0.5).astype(int)
     print(f"\nHidden representation (threshold 0.5): {h_binary}")
 
-    print(f"\nNote: These are results with RANDOM initial weights.")
-    print(f"After training, the hidden units will capture meaningful patterns.")
+    # -------------------------------------------------------
+    # Interpretation
+    # -------------------------------------------------------
+    print(f"\n{'=' * 55}")
+    print("INTERPRETATION")
+    print("=" * 55)
+    print(f"\nH1 represents a learned latent preference pattern.")
+    print(f"H2 represents another learned latent preference pattern.")
+    print(f"\nNote: RBMs learn latent features from data automatically.")
+    print(f"Hidden units do not receive human-readable labels.")
+    print(f"The above names are conceptual interpretations for demonstration.")
+
+    # Show all listeners' hidden representations
+    print(f"\n{'=' * 55}")
+    print("ALL LISTENERS - Hidden Representations")
+    print("=" * 55)
+    print(f"\n{'Listener':<10} {'Input Vector':<25} {'H1 prob':>8} {'H2 prob':>8} {'Hidden':>8}")
+    print("-" * 62)
+
+    for i in range(data.shape[0]):
+        v = data[i].astype(float)
+        h_p = hidden_probability(v, W, hidden_bias)
+        h_b = (h_p >= 0.5).astype(int)
+        print(f"L{i+1:<9} {str(data[i]):<25} {h_p[0]:>8.4f} {h_p[1]:>8.4f} {str(h_b):>8}")
