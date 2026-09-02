@@ -7,6 +7,7 @@ are transformed into hidden preference features (hidden layer).
 """
 
 import numpy as np
+import os
 
 # -----------------------------------------------------------
 # Configuration
@@ -202,6 +203,53 @@ def train_rbm(data, W, visible_bias, hidden_bias, epochs=500, learning_rate=0.1)
 
 
 # -----------------------------------------------------------
+# Save results to a text file
+# -----------------------------------------------------------
+def save_results(filepath, listener, h_prob, h_binary, data, W,
+                 visible_bias, hidden_bias, genre_names):
+    """
+    Save the RBM results to a text file for documentation.
+    """
+    # Create the output directory if it doesn't exist
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+    with open(filepath, 'w') as f:
+        f.write("Restricted Boltzmann Machine - Music Preference Results\n")
+        f.write("=" * 55 + "\n\n")
+
+        # Listener demo
+        f.write("DEMO LISTENER\n")
+        f.write("-" * 40 + "\n")
+        f.write(f"Input vector: {listener}\n")
+        for i, genre in enumerate(genre_names):
+            status = "likes" if listener[i] == 1 else "does not like"
+            f.write(f"  {genre}: {listener[i]} ({status})\n")
+        f.write(f"\nHidden activation probabilities:\n")
+        f.write(f"  H1: {h_prob[0]:.4f}\n")
+        f.write(f"  H2: {h_prob[1]:.4f}\n")
+        f.write(f"Hidden representation: {h_binary}\n\n")
+
+        # All listeners
+        f.write("ALL LISTENERS - Hidden Representations\n")
+        f.write("-" * 55 + "\n")
+        f.write(f"{'Listener':<10} {'Input Vector':<25} {'H1':>6} {'H2':>6} {'Hidden':>8}\n")
+        for i in range(data.shape[0]):
+            v = data[i].astype(float)
+            h_p = hidden_probability(v, W, hidden_bias)
+            h_b = (h_p >= 0.5).astype(int)
+            f.write(f"L{i+1:<9} {str(data[i]):<25} {h_p[0]:>6.4f} {h_p[1]:>6.4f} {str(h_b):>8}\n")
+
+        # Learned weights
+        f.write(f"\nLEARNED WEIGHTS\n")
+        f.write("-" * 40 + "\n")
+        f.write(f"Weight matrix (6 visible x 2 hidden):\n")
+        for i, genre in enumerate(genre_names):
+            f.write(f"  {genre:<12} -> H1: {W[i,0]:+.4f}, H2: {W[i,1]:+.4f}\n")
+
+    print(f"\nResults saved to: {filepath}")
+
+
+# -----------------------------------------------------------
 # Main
 # -----------------------------------------------------------
 if __name__ == "__main__":
@@ -291,6 +339,25 @@ if __name__ == "__main__":
     print(f"\nHidden representation (threshold 0.5): {h_binary}")
 
     # -------------------------------------------------------
+    # Reconstruction demo
+    # -------------------------------------------------------
+    print(f"\n{'=' * 55}")
+    print("RECONSTRUCTION DEMO")
+    print("=" * 55)
+    print(f"\nUsing hidden representation {h_binary} to reconstruct visible layer:")
+
+    v_reconstructed_prob = visible_probability(h_binary.astype(float), W, visible_bias)
+    v_reconstructed = (v_reconstructed_prob >= 0.5).astype(int)
+
+    print(f"\n{'Genre':<12} {'Original':>10} {'Reconstructed':>15} {'Probability':>12}")
+    print("-" * 52)
+    for i, genre in enumerate(GENRE_NAMES):
+        print(f"{genre:<12} {listener[i]:>10} {v_reconstructed[i]:>15} {v_reconstructed_prob[i]:>12.4f}")
+
+    match_count = np.sum(listener == v_reconstructed)
+    print(f"\nReconstruction accuracy: {match_count}/{NUM_VISIBLE} genres match")
+
+    # -------------------------------------------------------
     # Interpretation
     # -------------------------------------------------------
     print(f"\n{'=' * 55}")
@@ -314,3 +381,12 @@ if __name__ == "__main__":
         h_p = hidden_probability(v, W, hidden_bias)
         h_b = (h_p >= 0.5).astype(int)
         print(f"L{i+1:<9} {str(data[i]):<25} {h_p[0]:>8.4f} {h_p[1]:>8.4f} {str(h_b):>8}")
+
+    # -------------------------------------------------------
+    # Save results to file
+    # -------------------------------------------------------
+    save_results(
+        "results/hidden_representation.txt",
+        listener, h_prob, h_binary, data, W,
+        visible_bias, hidden_bias, GENRE_NAMES
+    )

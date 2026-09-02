@@ -1,0 +1,41 @@
+Restricted Boltzmann Machine - Music Preference Results
+=======================================================
+
+DEMO LISTENER
+----------------------------------------
+Input vector: [1 1 0 1 0 1]
+  Pop: 1 (likes)
+  Rock: 1 (likes)
+  Classical: 0 (does not like)
+  Hip-Hop: 1 (likes)
+  Jazz: 0 (does not like)
+  Electronic: 1 (likes)
+
+Hidden activation probabilities:
+  H1: 0.9978
+  H2: 0.9892
+Hidden representation: [1 1]
+
+ALL LISTENERS - Hidden Representations
+-------------------------------------------------------
+Listener   Input Vector                  H1     H2   Hidden
+L1         [1 1 0 1 0 1]             0.9978 0.9892    [1 1]
+L2         [1 0 0 1 0 1]             0.9974 0.9833    [1 1]
+L3         [0 1 1 0 1 0]             0.0009 0.0057    [0 0]
+L4         [1 1 0 0 0 1]             0.9804 0.9522    [1 1]
+L5         [0 0 1 0 1 0]             0.0007 0.0037    [0 0]
+L6         [1 0 0 1 0 1]             0.9974 0.9833    [1 1]
+L7         [0 1 1 0 1 0]             0.0009 0.0057    [0 0]
+L8         [1 1 0 1 0 1]             0.9978 0.9892    [1 1]
+L9         [0 0 1 0 1 1]             0.0031 0.0102    [0 0]
+L10        [1 1 0 1 0 0]             0.9908 0.9705    [1 1]
+
+LEARNED WEIGHTS
+----------------------------------------
+Weight matrix (6 visible x 2 hidden):
+  Pop          -> H1: +3.0117, H2: +2.2102
+  Rock         -> H1: +0.1918, H2: +0.4397
+  Classical    -> H1: -3.2135, H2: -2.4917
+  Hip-Hop      -> H1: +2.2160, H2: +1.5205
+  Jazz         -> H1: -3.2547, H2: -2.4297
+  Electronic   -> H1: +1.4484, H2: +1.0210
