@@ -7,6 +7,10 @@ are transformed into hidden preference features (hidden layer).
 """
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend (no GUI window needed)
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import os
 
 # -----------------------------------------------------------
@@ -250,6 +254,104 @@ def save_results(filepath, listener, h_prob, h_binary, data, W,
 
 
 # -----------------------------------------------------------
+# Visualization: RBM architecture and learned weights
+# -----------------------------------------------------------
+def plot_rbm_results(W, genre_names, h_prob, listener, save_path="results/rbm_result.png"):
+    """
+    Create a simple visualization with two panels:
+    1. RBM architecture diagram (visible -> hidden)
+    2. Learned weight bar chart per genre
+    """
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    # ----- Panel 1: RBM Architecture Diagram -----
+    ax1 = axes[0]
+    ax1.set_xlim(0, 10)
+    ax1.set_ylim(0, 10)
+    ax1.set_aspect('equal')
+    ax1.axis('off')
+    ax1.set_title('RBM Architecture', fontsize=14, fontweight='bold', pad=15)
+
+    # Positions for visible units (left column)
+    num_v = len(genre_names)
+    v_x = 2.0
+    v_positions = []
+    for i in range(num_v):
+        y = 8.5 - i * 1.3
+        v_positions.append((v_x, y))
+
+    # Positions for hidden units (right column)
+    h_x = 8.0
+    h_positions = [(h_x, 6.0), (h_x, 3.5)]
+
+    # Draw connections (lines) with color based on weight strength
+    max_w = np.max(np.abs(W))
+    for i in range(num_v):
+        for j in range(2):
+            weight = W[i, j]
+            # Color: blue for positive, red for negative
+            color = '#2196F3' if weight > 0 else '#F44336'
+            width = 0.5 + 2.0 * abs(weight) / max_w
+            alpha = 0.3 + 0.5 * abs(weight) / max_w
+            ax1.plot([v_positions[i][0] + 0.4, h_positions[j][0] - 0.4],
+                     [v_positions[i][1], h_positions[j][1]],
+                     color=color, linewidth=width, alpha=alpha)
+
+    # Draw visible unit circles
+    for i, (x, y) in enumerate(v_positions):
+        circle = plt.Circle((x, y), 0.4, color='#4CAF50', ec='#2E7D32',
+                             linewidth=2, zorder=5)
+        ax1.add_patch(circle)
+        ax1.text(x, y, f'V{i+1}', ha='center', va='center',
+                 fontsize=9, fontweight='bold', color='white', zorder=6)
+        ax1.text(x - 0.7, y, genre_names[i], ha='right', va='center',
+                 fontsize=8, color='#333333')
+
+    # Draw hidden unit circles
+    hidden_labels = ['H1', 'H2']
+    for j, (x, y) in enumerate(h_positions):
+        circle = plt.Circle((x, y), 0.4, color='#FF9800', ec='#E65100',
+                             linewidth=2, zorder=5)
+        ax1.add_patch(circle)
+        ax1.text(x, y, hidden_labels[j], ha='center', va='center',
+                 fontsize=9, fontweight='bold', color='white', zorder=6)
+        ax1.text(x + 0.7, y, f'P={h_prob[j]:.3f}', ha='left', va='center',
+                 fontsize=8, color='#333333')
+
+    # Layer labels
+    ax1.text(v_x, 9.5, 'Visible Layer', ha='center', fontsize=10,
+             fontweight='bold', color='#4CAF50')
+    ax1.text(h_x, 9.5, 'Hidden Layer', ha='center', fontsize=10,
+             fontweight='bold', color='#FF9800')
+
+    # ----- Panel 2: Weight Bar Chart -----
+    ax2 = axes[1]
+    x_pos = np.arange(num_v)
+    bar_width = 0.35
+
+    bars1 = ax2.bar(x_pos - bar_width/2, W[:, 0], bar_width,
+                    label='H1 weights', color='#2196F3', alpha=0.8)
+    bars2 = ax2.bar(x_pos + bar_width/2, W[:, 1], bar_width,
+                    label='H2 weights', color='#FF9800', alpha=0.8)
+
+    ax2.set_xlabel('Music Genre', fontsize=11)
+    ax2.set_ylabel('Learned Weight', fontsize=11)
+    ax2.set_title('Learned Weights per Genre', fontsize=14, fontweight='bold')
+    ax2.set_xticks(x_pos)
+    ax2.set_xticklabels(genre_names, rotation=30, ha='right', fontsize=9)
+    ax2.legend(fontsize=9)
+    ax2.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+    ax2.grid(axis='y', alpha=0.3)
+
+    plt.tight_layout(pad=2.0)
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    print(f"Visualization saved to: {save_path}")
+    plt.close()
+
+
+# -----------------------------------------------------------
 # Main
 # -----------------------------------------------------------
 if __name__ == "__main__":
@@ -390,3 +492,10 @@ if __name__ == "__main__":
         listener, h_prob, h_binary, data, W,
         visible_bias, hidden_bias, GENRE_NAMES
     )
+
+    # -------------------------------------------------------
+    # Generate visualization
+    # -------------------------------------------------------
+    plot_rbm_results(W, GENRE_NAMES, h_prob, listener,
+                     save_path="results/rbm_result.png")
+
